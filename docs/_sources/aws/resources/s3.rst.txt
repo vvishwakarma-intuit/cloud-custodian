@@ -52,6 +52,8 @@ Filters
 
   - :ref:`ops-item <aws.common.filters.ops-item>`
   
+  - :ref:`ownership <aws.common.filters.ownership>`
+  
   - :ref:`reduce <aws.common.filters.reduce>`
   
   - :ref:`value <aws.common.filters.value>`

@@ -291,6 +291,8 @@ Actions
   
   - :ref:`mark-for-op <aws.common.actions.mark-for-op>`
   
+  - :ref:`modify-ecr-policy <aws.common.actions.modify-ecr-policy>`
+  
   - :ref:`notify <aws.common.actions.notify>`
   
   - :ref:`post-finding <aws.common.actions.post-finding>`
