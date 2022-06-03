@@ -25,6 +25,7 @@ from c7n.resources.shield import IsShieldProtected, SetShieldProtection
 
 @resources.register('vpc')
 class Vpc(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'vpc'
@@ -139,7 +140,7 @@ class FlowLogFilter(Filter):
                     delivery_status_match = (delivery_status is None) or op(
                         fl['DeliverLogsStatus'], delivery_status.upper())
                     traffic_type_match = (
-                                                 traffic_type is None) or op(
+                        traffic_type is None) or op(
                         fl['TrafficType'],
                         traffic_type.upper())
                     log_group_match = (log_group is None) or op(fl.get('LogGroupName'), log_group)
@@ -421,6 +422,7 @@ class DhcpOptionsFilter(Filter):
 
 @Vpc.action_registry.register('post-finding')
 class VpcPostFinding(PostFinding):
+
     resource_type = "AwsEc2Vpc"
 
     def format_resource(self, r):
@@ -475,6 +477,7 @@ def extract_subnet_id(state_error):
 
 @resources.register('subnet')
 class Subnet(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'subnet'
@@ -495,6 +498,7 @@ Subnet.filter_registry.register('flow-logs', FlowLogFilter)
 
 @Subnet.filter_registry.register('vpc')
 class SubnetVpcFilter(net_filters.VpcFilter):
+
     RelatedIdsExpression = "VpcId"
 
 
@@ -526,6 +530,7 @@ class ConfigSG(query.ConfigSource):
 
 @resources.register('security-group')
 class SecurityGroup(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'security-group'
@@ -659,6 +664,7 @@ class SecurityGroupApplyPatch(BaseAction):
 
 
 class SecurityGroupPatch:
+
     RULE_TYPE_MAP = {
         'egress': ('IpPermissionsEgress',
                    'revoke_security_group_egress',
@@ -720,8 +726,8 @@ class SGUsage(Filter):
     def get_permissions(self):
         return list(itertools.chain(
             *[self.manager.get_resource_manager(m).get_permissions()
-              for m in
-              ['lambda', 'eni', 'launch-config', 'security-group', 'event-rule-target']]))
+             for m in
+             ['lambda', 'eni', 'launch-config', 'security-group', 'event-rule-target']]))
 
     def filter_peered_refs(self, resources):
         if not resources:
@@ -1124,7 +1130,7 @@ class SGPermission(Filter):
         fattrs = list(sorted(self.perm_attrs.intersection(self.data.keys())))
         self.ports = 'Ports' in self.data and self.data['Ports'] or ()
         self.only_ports = (
-                'OnlyPorts' in self.data and self.data['OnlyPorts'] or ())
+            'OnlyPorts' in self.data and self.data['OnlyPorts'] or ())
         for f in fattrs:
             fv = self.data.get(f)
             if isinstance(fv, dict):
@@ -1323,6 +1329,7 @@ SGPermissionSchema = {
 
 @SecurityGroup.filter_registry.register('ingress')
 class IPPermission(SGPermission):
+
     ip_permissions_key = "IpPermissions"
     schema = {
         'type': 'object',
@@ -1334,6 +1341,7 @@ class IPPermission(SGPermission):
 
 @SecurityGroup.filter_registry.register('egress')
 class IPPermissionEgress(SGPermission):
+
     ip_permissions_key = "IpPermissionsEgress"
     schema = {
         'type': 'object',
@@ -1409,11 +1417,11 @@ class RemovePermissions(BaseAction):
             for label, perms in [('ingress', i_perms), ('egress', e_perms)]:
                 if perms == 'matched':
                     key = 'MatchedIpPermissions%s' % (
-                            label == 'egress' and 'Egress' or '')
+                        label == 'egress' and 'Egress' or '')
                     groups = r.get(key, ())
                 elif perms == 'all':
                     key = 'IpPermissions%s' % (
-                            label == 'egress' and 'Egress' or '')
+                        label == 'egress' and 'Egress' or '')
                     groups = r.get(key, ())
                 elif isinstance(perms, list):
                     groups = perms
@@ -1550,6 +1558,7 @@ class DescribeENI(query.DescribeSource):
 
 @resources.register('eni')
 class NetworkInterface(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'eni'
@@ -1614,6 +1623,7 @@ class InterfaceSecurityGroupFilter(net_filters.SecurityGroupFilter):
 
 @NetworkInterface.filter_registry.register('vpc')
 class InterfaceVpcFilter(net_filters.VpcFilter):
+
     RelatedIdsExpression = "VpcId"
 
 
@@ -1712,6 +1722,7 @@ class DeleteNetworkInterface(BaseAction):
 
 @resources.register('route-table')
 class RouteTable(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'route-table'
@@ -1725,6 +1736,7 @@ class RouteTable(query.QueryResourceManager):
 
 @RouteTable.filter_registry.register('vpc')
 class RouteTableVpcFilter(net_filters.VpcFilter):
+
     RelatedIdsExpression = "VpcId"
 
 
@@ -1788,6 +1800,7 @@ class Route(ValueFilter):
 
 @resources.register('transit-gateway')
 class TransitGateway(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         enum_spec = ('describe_transit_gateways', 'TransitGateways', None)
@@ -1810,11 +1823,13 @@ class TransitGatewayAttachmentQuery(query.ChildResourceQuery):
 
 @query.sources.register('transit-attachment')
 class TransitAttachmentSource(query.ChildDescribeSource):
+
     resource_query_factory = TransitGatewayAttachmentQuery
 
 
 @resources.register('transit-attachment')
 class TransitGatewayAttachment(query.ChildResourceManager):
+
     child_source = 'transit-attachment'
 
     class resource_type(query.TypeInfo):
@@ -1829,6 +1844,7 @@ class TransitGatewayAttachment(query.ChildResourceManager):
 
 @resources.register('peering-connection')
 class PeeringConnection(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'vpc-peering-connection'
@@ -1843,6 +1859,7 @@ class PeeringConnection(query.QueryResourceManager):
 
 @PeeringConnection.filter_registry.register('cross-account')
 class CrossAccountPeer(CrossAccountAccessFilter):
+
     schema = type_schema(
         'cross-account',
         # white list accounts
@@ -1909,6 +1926,7 @@ class MissingRoute(Filter):
 
 @resources.register('network-acl')
 class NetworkAcl(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'network-acl'
@@ -1989,7 +2007,7 @@ class AclAwsS3Cidrs(Filter):
                 for c in matched:
                     if c in entry_cidr and matched[c] is None:
                         matched[c] = (
-                                entry['RuleAction'] == 'allow' and True or False)
+                            entry['RuleAction'] == 'allow' and True or False)
             if present and all(matched.values()):
                 results.append(r)
             elif not present and not all(matched.values()):
@@ -2005,6 +2023,7 @@ class DescribeElasticIp(query.DescribeSource):
 
 @resources.register('elastic-ip', aliases=('network-addr',))
 class NetworkAddress(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'eip-allocation'
@@ -2057,8 +2076,8 @@ class AddressRelease(BaseAction):
                 client.disassociate_address(AssociationId=aa['AssociationId'])
             except ClientError as e:
                 # If its already been diassociated ignore, else raise.
-                if not (e.response['Error']['Code'] == 'InvalidAssocationID.NotFound' and
-                        aa['AssocationId'] in e.response['Error']['Message']):
+                if not(e.response['Error']['Code'] == 'InvalidAssocationID.NotFound' and
+                       aa['AssocationId'] in e.response['Error']['Message']):
                     raise e
                 associated_addrs.remove(aa)
         return associated_addrs
@@ -2088,6 +2107,7 @@ class AddressRelease(BaseAction):
 
 @resources.register('customer-gateway')
 class CustomerGateway(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'customer-gateway'
@@ -2102,6 +2122,7 @@ class CustomerGateway(query.QueryResourceManager):
 
 @resources.register('internet-gateway')
 class InternetGateway(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'internet-gateway'
@@ -2115,6 +2136,7 @@ class InternetGateway(query.QueryResourceManager):
 
 @InternetGateway.action_registry.register('delete')
 class DeleteInternetGateway(BaseAction):
+
     """Action to delete Internet Gateway
 
     :example:
@@ -2144,6 +2166,7 @@ class DeleteInternetGateway(BaseAction):
 
 @resources.register('nat-gateway')
 class NATGateway(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'nat-gateway'
@@ -2160,6 +2183,7 @@ class NATGateway(query.QueryResourceManager):
 
 @NATGateway.action_registry.register('delete')
 class DeleteNATGateway(BaseAction):
+
     schema = type_schema('delete')
     permissions = ('ec2:DeleteNatGateway',)
 
@@ -2171,6 +2195,7 @@ class DeleteNATGateway(BaseAction):
 
 @resources.register('vpn-connection')
 class VPNConnection(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'vpc-connection'
@@ -2184,6 +2209,7 @@ class VPNConnection(query.QueryResourceManager):
 
 @resources.register('vpn-gateway')
 class VPNGateway(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'vpc-gateway'
@@ -2197,6 +2223,7 @@ class VPNGateway(query.QueryResourceManager):
 
 @resources.register('vpc-endpoint')
 class VpcEndpoint(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'vpc-endpoint'
@@ -2212,6 +2239,7 @@ class VpcEndpoint(query.QueryResourceManager):
 
 @VpcEndpoint.filter_registry.register('cross-account')
 class EndpointCrossAccountFilter(CrossAccountAccessFilter):
+
     policy_attribute = 'PolicyDocument'
     annotation_key = 'c7n:CrossAccountViolations'
     permissions = ('ec2:DescribeVpcEndpoints',)
@@ -2219,16 +2247,19 @@ class EndpointCrossAccountFilter(CrossAccountAccessFilter):
 
 @VpcEndpoint.filter_registry.register('security-group')
 class EndpointSecurityGroupFilter(net_filters.SecurityGroupFilter):
+
     RelatedIdsExpression = "Groups[].GroupId"
 
 
 @VpcEndpoint.filter_registry.register('subnet')
 class EndpointSubnetFilter(net_filters.SubnetFilter):
+
     RelatedIdsExpression = "SubnetIds[]"
 
 
 @VpcEndpoint.filter_registry.register('vpc')
 class EndpointVpcFilter(net_filters.VpcFilter):
+
     RelatedIdsExpression = "VpcId"
 
 
@@ -2285,6 +2316,7 @@ class SubnetEndpointFilter(RelatedResourceByIdFilter):
 
 @resources.register('key-pair')
 class KeyPair(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'key-pair'
@@ -2320,7 +2352,7 @@ class UnusedKeyPairs(Filter):
     annotation_key = 'c7n:unused_keys'
     permissions = ('ec2:DescribeKeyPairs',)
     schema = type_schema('unused',
-                         state={'type': 'boolean'})
+        state={'type': 'boolean'})
 
     def process(self, resources, event=None):
         instances = self.manager.get_resource_manager('ec2').resources()
@@ -2524,6 +2556,7 @@ class PrefixListDescribe(query.DescribeSource):
 
 @resources.register('prefix-list')
 class PrefixList(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         arn_type = 'prefix-list'
@@ -2538,6 +2571,7 @@ class PrefixList(query.QueryResourceManager):
 
 @PrefixList.filter_registry.register('entry')
 class Entry(Filter):
+
     schema = type_schema(
         'entry', rinherit=ValueFilter.schema)
     permissions = ('ec2:GetManagedPrefixListEntries',)
@@ -2624,6 +2658,7 @@ class SubnetModifyAtrributes(BaseAction):
 
 @resources.register('mirror-session')
 class TrafficMirrorSession(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         enum_spec = ('describe_traffic_mirror_sessions', 'TrafficMirrorSessions', None)
@@ -2659,11 +2694,12 @@ class DeleteTrafficMirrorSession(BaseAction):
     def process(self, resources):
         client = local_session(self.manager.session_factory).client('ec2')
         for r in resources:
-            client.delete_c7n.managertraffic_mirror_session(TrafficMirrorSessionId=r['TrafficMirrorSessionId'])
+            client.delete_traffic_mirror_session(TrafficMirrorSessionId=r['TrafficMirrorSessionId'])
 
 
 @resources.register('mirror-target')
 class TrafficMirrorTarget(query.QueryResourceManager):
+
     class resource_type(query.TypeInfo):
         service = 'ec2'
         enum_spec = ('describe_traffic_mirror_targets', 'TrafficMirrorTargets', None)
@@ -2684,7 +2720,7 @@ class CrossAZRouteTable(Filter):
     :Example:
     .. code-block:: yaml
             policies:
-              - name: cross-az-nat-gw-traffic
+              - name: cross-az-nat-gateway--traffic
                 resource: aws.route-table
                 filters:
                     - type: cross-az-nat-gateway-route
@@ -2717,19 +2753,21 @@ class CrossAZRouteTable(Filter):
         all_nat_gws = client.describe_nat_gateways()
         subnets_az_map = {item["SubnetId"]: item["AvailabilityZone"] for item in all_subnets["Subnets"]}
         nat_gws_subnet_map = {item['NatGatewayId']: item["SubnetId"] for item in all_nat_gws["NatGateways"]}
-        all_nat_gw_az = [subnets_az_map[item["SubnetId"]] for item in all_nat_gws["NatGateways"]]  # To make sure NAT Gateway is available in a given AZ
+        all_nat_gw_az = [subnets_az_map[item["SubnetId"]] for item in
+                         all_nat_gws["NatGateways"]]  # To make sure NAT Gateway is available in a given AZ
 
         for res in resources:
+            res['NatGatewayAvailabilityZone'] = {}
             for item in res["Routes"]:
                 if item.get("NatGatewayId") and item.get("State") == "active":
                     # Get subnet associations
                     subnet_associations = [item["SubnetId"] for item in res["Associations"] if item.get("SubnetId")]
                     # Get NAT Gateway availability zone
                     nat_gw_az = subnets_az_map[nat_gws_subnet_map[item.get("NatGatewayId")]]
-                    res['NatGatewayAvailabilityZone'] = nat_gw_az
+                    res['NatGatewayAvailabilityZone'][item.get("NatGatewayId")] = nat_gw_az
                     # Get subnet AZs
                     if subnet_associations:
-                        cross_nat_az_check = list()  # To store cross NAT AZ status
+                        cross_nat_az = list()  # To store cross NAT AZ status
                         for item1 in res["Associations"]:
                             if item1.get("SubnetId"):
                                 item1['SubnetAvailabilityZone'] = subnets_az_map[item1["SubnetId"]]
@@ -2739,10 +2777,10 @@ class CrossAZRouteTable(Filter):
                                     item1['NatGatewayAvailableInSubnetAvailabilityZone'] = False
                                 # check if Associated Subnet AZ is same as NAT GW AZ
                                 if subnets_az_map[item1["SubnetId"]] != nat_gw_az:
-                                    cross_nat_az_check.append('Y')
+                                    cross_nat_az.append('Y')
                                 else:
-                                    cross_nat_az_check.append('N')
-                        if 'Y' in cross_nat_az_check:
+                                    cross_nat_az.append('N')
+                        if 'Y' in cross_nat_az:
                             res['NatGatewayInCrossAvailabilityZone'] = True
                         else:
                             res['NatGatewayInCrossAvailabilityZone'] = False
