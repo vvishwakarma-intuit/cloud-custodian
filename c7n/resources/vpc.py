@@ -21,6 +21,7 @@ from c7n.utils import (
 
 from c7n.resources.aws import shape_validate
 from c7n.resources.shield import IsShieldProtected, SetShieldProtection
+from c7n.query import (RetryPageIterator)
 
 
 @resources.register('vpc')
@@ -2720,27 +2721,10 @@ class CrossAZRouteTable(Filter):
     :Example:
     .. code-block:: yaml
             policies:
-              - name: cross-az-nat-gateway--traffic
+              - name: cross-az-nat-gateway-traffic
                 resource: aws.route-table
                 filters:
                     - type: cross-az-nat-gateway-route
-                    - type: value
-                      key: Routes[].NatGatewayId
-                      op: eq
-                      value: not-null
-                    - type: value
-                      key: Associations[].NatGatewayAvailableInSubnetAvailabilityZone
-                      op: ni
-                      value: false
-                      value_type: swap
-                    - type: value
-                      key: Associations[].SubnetAvailabilityZone
-                      op: eq
-                      value: not-null
-                    - type: value
-                      key: NatGatewayInCrossAvailabilityZone
-                      op: eq
-                      value: true
                 actions:
                   - notify
     """
@@ -2748,40 +2732,47 @@ class CrossAZRouteTable(Filter):
 
     def process(self, resources, event=None):
         client = local_session(self.manager.session_factory).client('ec2')
-        # dump of all subnets to avoid multiple API calls
-        all_subnets = client.describe_subnets()
-        all_nat_gws = client.describe_nat_gateways()
-        subnets_az_map = {item["SubnetId"]: item["AvailabilityZone"] for item in all_subnets["Subnets"]}
-        nat_gws_subnet_map = {item['NatGatewayId']: item["SubnetId"] for item in all_nat_gws["NatGateways"]}
-        all_nat_gw_az = [subnets_az_map[item["SubnetId"]] for item in
-                         all_nat_gws["NatGateways"]]  # To make sure NAT Gateway is available in a given AZ
 
+        # dump of all subnets to avoid multiple API calls
+        subnet_paginator = client.get_paginator('describe_subnets')
+        subnet_paginator.PAGE_ITERATOR_CLS = RetryPageIterator
+        all_subnets = subnet_paginator.paginate().build_full_result()
+
+        # dump of all NAT Gateways to avoid multiple API calls
+        nat_paginator = client.get_paginator('describe_nat_gateways')
+        nat_paginator.PAGE_ITERATOR_CLS = RetryPageIterator
+        all_nat_gws = nat_paginator.paginate().build_full_result()
+
+        # Create subnet_id AZ mapping
+        subnets_az_map = {subnet["SubnetId"]: subnet["AvailabilityZone"] for subnet in all_subnets["Subnets"]}
+
+        # Create nat_gateway subnet_id AZ mapping
+        nat_gws_subnet_map = {nat_gateway['NatGatewayId']: nat_gateway["SubnetId"] for nat_gateway in
+                              all_nat_gws["NatGateways"]}
+
+        # List of AZ where NAT gateways are created. To make sure NAT Gateway is available in a given AZ
+        all_nat_gw_az = [subnets_az_map[nat_gateway["SubnetId"]] for nat_gateway in
+                         all_nat_gws["NatGateways"]]
+
+        results = list()  # To return filtered resources
         for res in resources:
             res['NatGatewayAvailabilityZone'] = {}
-            for item in res["Routes"]:
-                if item.get("NatGatewayId") and item.get("State") == "active":
-                    # Get subnet associations
-                    subnet_associations = [item["SubnetId"] for item in res["Associations"] if item.get("SubnetId")]
-                    # Get NAT Gateway availability zone
-                    nat_gw_az = subnets_az_map[nat_gws_subnet_map[item.get("NatGatewayId")]]
-                    res['NatGatewayAvailabilityZone'][item.get("NatGatewayId")] = nat_gw_az
-                    # Get subnet AZs
-                    if subnet_associations:
-                        cross_nat_az = list()  # To store cross NAT AZ status
-                        for item1 in res["Associations"]:
-                            if item1.get("SubnetId"):
-                                item1['SubnetAvailabilityZone'] = subnets_az_map[item1["SubnetId"]]
-                                if subnets_az_map[item1["SubnetId"]] in all_nat_gw_az:
-                                    item1['NatGatewayAvailableInSubnetAvailabilityZone'] = True
-                                else:
-                                    item1['NatGatewayAvailableInSubnetAvailabilityZone'] = False
-                                # check if Associated Subnet AZ is same as NAT GW AZ
-                                if subnets_az_map[item1["SubnetId"]] != nat_gw_az:
-                                    cross_nat_az.append('Y')
-                                else:
-                                    cross_nat_az.append('N')
-                        if 'Y' in cross_nat_az:
-                            res['NatGatewayInCrossAvailabilityZone'] = True
-                        else:
-                            res['NatGatewayInCrossAvailabilityZone'] = False
-        return resources
+            for route in res["Routes"]:
+                if route.get("NatGatewayId") and route.get("State") == "active":
+                    nat_gw_az = subnets_az_map[nat_gws_subnet_map[route.get("NatGatewayId")]]
+                    res['NatGatewayAvailabilityZone'][route.get("NatGatewayId")] = nat_gw_az
+                    cross_nat_az = False
+                    for association in res["Associations"]:
+                        if association.get("SubnetId"):
+                            association['SubnetAvailabilityZone'] = subnets_az_map[association["SubnetId"]]
+                            if subnets_az_map[association["SubnetId"]] in all_nat_gw_az:
+                                association['NatGatewayAvailableInSubnetAvailabilityZone'] = True
+                            else:
+                                association['NatGatewayAvailableInSubnetAvailabilityZone'] = False
+                            # check if Associated Subnet AZ is same as NAT GW AZ
+                            if subnets_az_map[association["SubnetId"]] != nat_gw_az:
+                                cross_nat_az = True
+                    if cross_nat_az:
+                        res['NatGatewayInCrossAvailabilityZone'] = True
+                        results.append(res)
+        return results
