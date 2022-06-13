@@ -9,7 +9,7 @@ from c7n.filters import Filter
 from c7n.manager import resources
 from c7n.filters.vpc import SecurityGroupFilter, SubnetFilter
 from c7n.query import (
-    QueryResourceManager, ChildResourceManager, TypeInfo, DescribeSource, ConfigSource
+    QueryResourceManager, ChildResourceManager, TypeInfo, DescribeSource, ConfigSource,RetryPageIterator
 )
 from c7n.tags import universal_augment
 from c7n.utils import local_session, type_schema, get_retry
@@ -304,3 +304,69 @@ class CheckSecureTransport(Filter):
             "%d of %d EFS policies don't enforce secure transport",
             len(results), len(resources))
         return results
+
+
+@ElasticFileSystemMountTarget.filter_registry.register('public-subnet')
+class ElasticFileSystemMountPublicSubnet(Filter):
+    """Find elastic file system mount targets which are created in public subnet
+    What is a public subnet- a subnet associated with a route-table that is having route through internet gateway(IGW)
+
+    :Example:
+
+    .. code-block:: yaml
+      - name: efs-mount-target-public-subnet
+        resource: efs-mount-target
+        filters:
+            - type: public-subnet
+        actions:
+          - notify
+
+    .. code-block:: json
+       "name":"efs-mount-target-public-subnet",
+       "resource":"efs-mount-target",
+       "filters":[
+          {
+             "type":"public-subnet"
+          }
+       ],
+       "actions":[
+          "notify"
+       ]
+
+    """
+
+    schema = type_schema('public-subnet')
+    permissions = ('elasticfilesystem:DescribeMountTargets','ec2:DescribeRouteTables')
+
+    @staticmethod
+    def get_route_tables(client, subnet_id):
+        paginator = client.get_paginator('describe_route_tables')
+        paginator.PAGE_ITERATOR_CLS = RetryPageIterator
+        route_tables = paginator.paginate(Filters=[
+            {
+                'Name': 'association.subnet-id',
+                'Values': [subnet_id],
+            }]).build_full_result().get('RouteTables', [])
+        return route_tables
+
+    def process(self, resources, event=None):
+        c = local_session(self.manager.session_factory).client('ec2')
+        results = list()  # To return filtered resources
+        for resource in resources:
+            resource['PublicSubnet'] = False
+            subnet_id= resource['SubnetId']
+            route_tables = self.get_route_tables(c, subnet_id)
+            for route_table in route_tables:
+                if subnet_id in [subnet['SubnetId'] for subnet in route_table['Associations']]:
+                    for route in route_table['Routes']:
+                        if route.get('GatewayId') and 'igw-' in route.get('GatewayId'):
+                            resource['PublicSubnet'] = True
+                            results.append(resource)
+        return results
+
+
+
+
+
+
+

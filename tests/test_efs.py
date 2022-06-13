@@ -236,3 +236,29 @@ class ElasticFileSystem(BaseTest):
         resources = p.run()
         self.assertEqual(len(resources), 1)
         self.assertEqual(resources[0]["Name"], "efs-without-secure-transport")
+
+
+class ElasticFileSystemMountTarget(BaseTest):
+    def test_efs_mount_target_public_subnet(self):
+        factory = self.replay_flight_data("test_efs_mount_target_public_subnet")
+        p = self.load_policy(
+            {
+                "name": "efs-mount-target-public-subnet",
+                "resource": "efs-mount-target",
+                "filters": [
+                    {
+                        "type": "public-subnet"
+                    },
+                    {
+                        "type": "value",
+                        "key": "PublicSubnet",
+                        "op": "eq",
+                        "value": True
+                    }
+                ]
+            },
+            session_factory=factory,
+        )
+        resources = p.run()
+        self.assertEqual(len(resources), 1)
+        self.assertEqual(resources[0]["MountTargetId"], "fsmt-074bccfb4e9fd33b7")
