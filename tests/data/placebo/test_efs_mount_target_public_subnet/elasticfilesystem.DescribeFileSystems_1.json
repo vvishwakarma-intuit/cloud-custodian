@@ -1,0 +1,38 @@
+{
+    "status_code": 200,
+    "data": {
+        "ResponseMetadata": {},
+        "FileSystems": [
+            {
+            "OwnerId": "644160558196",
+            "CreationToken": "quickCreated-6e535cd4-0b10-4046-a916-796392a7417a",
+            "FileSystemId": "fs-0287b8e08dc6fe117",
+            "FileSystemArn": "arn:aws:elasticfilesystem:us-west-2:644160558196:file-system/fs-0287b8e08dc6fe117",
+            "CreationTime": "2022-06-01T19:40:09+05:30",
+            "LifeCycleState": "available",
+            "Name": "TestEfs",
+            "NumberOfMountTargets": 3,
+            "SizeInBytes": {
+                "Value": 6144,
+                "Timestamp": "2022-06-07T10:54:45+05:30",
+                "ValueInIA": 0,
+                "ValueInStandard": 6144
+            },
+            "PerformanceMode": "generalPurpose",
+            "Encrypted": true,
+            "KmsKeyId": "arn:aws:kms:us-west-2:644160558196:key/1837f09d-824a-4b76-92b2-a0f315f8f85e",
+            "ThroughputMode": "bursting",
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "TestEfs"
+                },
+                {
+                    "Key": "aws:elasticfilesystem:default-backup",
+                    "Value": "enabled"
+                }
+            ]
+        }
+        ]
+    }
+}
