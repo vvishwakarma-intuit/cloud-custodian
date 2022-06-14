@@ -357,7 +357,7 @@ class ElasticFileSystemMountPublicSubnet(Filter):
             subnet_id= resource['SubnetId']
             route_tables = self.get_route_tables(c, subnet_id)
             for route_table in route_tables:
-                if subnet_id in [subnet['SubnetId'] for subnet in route_table['Associations']]:
+                if subnet_id in [subnet.get('SubnetId') for subnet in route_table['Associations']]:
                     for route in route_table['Routes']:
                         if route.get('GatewayId') and 'igw-' in route.get('GatewayId'):
                             resource['PublicSubnet'] = True
