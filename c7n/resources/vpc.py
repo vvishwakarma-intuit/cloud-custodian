@@ -21,7 +21,6 @@ from c7n.utils import (
 
 from c7n.resources.aws import shape_validate
 from c7n.resources.shield import IsShieldProtected, SetShieldProtection
-from c7n.query import (RetryPageIterator)
 
 
 @resources.register('vpc')
@@ -2731,30 +2730,18 @@ class CrossAZRouteTable(Filter):
     schema = type_schema('cross-az-nat-gateway-route')
 
     def process(self, resources, event=None):
-        client = local_session(self.manager.session_factory).client('ec2')
-
-        # dump of all subnets to avoid multiple API calls
-        subnet_paginator = client.get_paginator('describe_subnets')
-        subnet_paginator.PAGE_ITERATOR_CLS = RetryPageIterator
-        all_subnets = subnet_paginator.paginate().build_full_result()
-
-        # dump of all NAT Gateways to avoid multiple API calls
-        nat_paginator = client.get_paginator('describe_nat_gateways')
-        nat_paginator.PAGE_ITERATOR_CLS = RetryPageIterator
-        all_nat_gws = nat_paginator.paginate().build_full_result()
-
+        # dump of all subnets and nat-gateways to avoid multiple API calls
+        all_subnets = self.manager.get_resource_manager('aws.subnet').resources()
+        all_nat_gws = self.manager.get_resource_manager('nat-gateway').resources()
         # Create subnet_id AZ mapping
-        subnets_az_map = {subnet["SubnetId"]: subnet["AvailabilityZone"] for subnet in all_subnets["Subnets"]}
-
+        subnets_az_map = {subnet["SubnetId"]: subnet["AvailabilityZone"] for subnet in all_subnets}
         # Create nat_gateway subnet_id AZ mapping
         nat_gws_subnet_map = {nat_gateway['NatGatewayId']: nat_gateway["SubnetId"] for nat_gateway in
-                              all_nat_gws["NatGateways"]}
-
+                              all_nat_gws}
         # List of AZ where NAT gateways are created. To make sure NAT Gateway is available in a given AZ
         all_nat_gw_az = [subnets_az_map[nat_gateway["SubnetId"]] for nat_gateway in
-                         all_nat_gws["NatGateways"]]
-
-        results = list()  # To return filtered resources
+                         all_nat_gws]
+        results = []  # To return filtered resources
         for res in resources:
             res['NatGatewayAvailabilityZone'] = {}
             for route in res["Routes"]:
