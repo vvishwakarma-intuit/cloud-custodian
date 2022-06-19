@@ -2688,7 +2688,11 @@ class CrossAZRouteTable(Filter):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
               - name: cross-az-nat-gateway-traffic
+=======
+              - name: cross-az-nat-gw-traffic
+>>>>>>> parent of 3e67c0b10 (aws-create filter for cross-az-nat-gateway-route from table)
 =======
               - name: cross-az-nat-gw-traffic
 >>>>>>> parent of 3e67c0b10 (aws-create filter for cross-az-nat-gateway-route from table)
