@@ -114,11 +114,11 @@ class VpcTest(BaseTest):
                         'AssociationId': 'vpc-cidr-assoc-98ba93f0',
                         'CidrBlock': '10.0.42.0/24',
                         'CidrBlockState': 'associated'}]}},
-                'Id': 'arn:aws:ec2:us-east-1:644160558196:vpc/vpc-f1516b97',
-                'Partition': 'aws',
-                'Region': 'us-east-1',
-                'Tags': {'Name': 'FancyTestVPC', 'tagfancykey': 'tagfanncyvalue'},
-                'Type': 'AwsEc2Vpc'})
+             'Id': 'arn:aws:ec2:us-east-1:644160558196:vpc/vpc-f1516b97',
+             'Partition': 'aws',
+             'Region': 'us-east-1',
+             'Tags': {'Name': 'FancyTestVPC', 'tagfancykey': 'tagfanncyvalue'},
+             'Type': 'AwsEc2Vpc'})
         shape_validate(
             formatted['Details']['AwsEc2Vpc'],
             'AwsEc2VpcDetails', 'securityhub')
@@ -583,10 +583,10 @@ class NetworkLocationTest(BaseTest):
             matched["c7n:NetworkLocation"],
             [
                 {"reason": "ResourceLocationAbsent",
-                 "resource": None},
+                "resource": None},
                 {"security-groups": {web_sg_id: "web"},
-                 "resource": None,
-                 "reason": "SecurityGroupMismatch"}],
+                "resource": None,
+                "reason": "SecurityGroupMismatch"}],
         )
 
     def test_network_compare_location_resource_missing(self):
@@ -802,7 +802,7 @@ class NetworkInterfaceTest(BaseTest):
         with self.assertRaises(client.exceptions.ClientError) as e:
             client.describe_network_interfaces(NetworkInterfaceIds=[eni])
         self.assertEqual(e.exception.response['Error']['Code'],
-                         'InvalidNetworkInterfaceID.NotFound')
+            'InvalidNetworkInterfaceID.NotFound')
 
     @functional
     def test_interface_subnet(self):
@@ -888,8 +888,8 @@ class NetworkAddrTest(BaseTest):
             # Swallow the condition that the elastic ip wasn't there (meaning the
             # test should have deleted it), re-raise any other boto client error
             if not (
-                    e.response["Error"]["Code"] == "InvalidAllocationID.NotFound" and
-                    network_address["AllocationId"] in e.response["Error"]["Message"]
+                e.response["Error"]["Code"] == "InvalidAllocationID.NotFound" and
+                network_address["AllocationId"] in e.response["Error"]["Message"]
             ):
                 raise e
 
@@ -1075,54 +1075,6 @@ class RouteTableTest(BaseTest):
             ],
         )
 
-<<<<<<< HEAD
-=======
-    def test_cross_az_nat_gateway_route_filter(self):
-        factory = self.replay_flight_data("test_cross_az_nat_gateway_route_filter")
-        p = self.load_policy(
-            {
-                "name": "cross-az-nat-gw-route-filter",
-                "resource": "route-table",
-                "filters": [
-                    {
-                        "type": "cross-az-nat-gateway-route"
-                    },
-                    {
-                        "type": "value",
-                        "key": "Routes[].NatGatewayId",
-                        "op": "eq",
-                        "value": "not-null"
-                    },
-                    {
-                        "type": "value",
-                        "key": "Associations[].NatGatewayAvailableInSubnetAvailabilityZone",
-                        "op": "ni",
-                        "value": False,
-                        "value_type": "swap"
-                    },
-                    {
-                        "type": "value",
-                        "key": "Associations[].SubnetAvailabilityZone",
-                        "op": "eq",
-                        "value": "not-null"
-                    },
-                    {
-                        "type": "value",
-                        "key": "NatGatewayInCrossAvailabilityZone",
-                        "op": "eq",
-                        "value": True
-                    }
-
-                ],
-            },
-            config={'region': 'us-west-2'},
-            session_factory=factory,
-        )
-        resources = p.run()
-        self.assertEqual(len(resources), 1)
-        self.assertEqual(resources[0]["NatGatewayAvailabilityZone"], "us-west-2a")
-
->>>>>>> parent of 3e67c0b10 (aws-create filter for cross-az-nat-gateway-route from table)
 
 class PeeringConnectionTest(BaseTest):
 
@@ -1654,11 +1606,11 @@ class SecurityGroupTest(BaseTest):
                     'OwnerId': '644160558196',
                     'VpcId': 'vpc-d2d616b5',
                     'c7n:resource-type': 'security-group'}},
-                'Id': 'arn:aws:ec2:us-east-1:644160558196:security-group/sg-6c7fa917',
-                'Partition': 'aws',
-                'Region': 'us-east-1',
-                'Tags': {'NetworkLocation': 'Private'},
-                'Type': 'AwsEc2SecurityGroup'})
+             'Id': 'arn:aws:ec2:us-east-1:644160558196:security-group/sg-6c7fa917',
+             'Partition': 'aws',
+             'Region': 'us-east-1',
+             'Tags': {'NetworkLocation': 'Private'},
+             'Type': 'AwsEc2SecurityGroup'})
 
     def test_permission_cidr_kv(self):
         factory = self.replay_flight_data('test_security_group_perm_cidr_kv')
@@ -2343,9 +2295,9 @@ class SecurityGroupTest(BaseTest):
             "resource": "security-group",
             "filters": [{"or": [
                 {"type": "egress", "CidrV6": {
-                    "value": "::/0"}},
+                 "value": "::/0"}},
                 {"type": "egress", "Cidr": {
-                    "value": "0.0.0.0/0"}},
+                 "value": "0.0.0.0/0"}},
             ]}]
         })
         manager = p.load_resource_manager()
