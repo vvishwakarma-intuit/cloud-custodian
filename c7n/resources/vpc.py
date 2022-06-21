@@ -2708,3 +2708,58 @@ class TrafficMirrorTarget(query.QueryResourceManager):
         arn_type = 'traffic-mirror-target'
         universal_taggable = object()
         id_prefix = 'tmt-'
+
+
+@RouteTable.filter_registry.register('cross-az-nat-gateway-route')
+class CrossAZRouteTable(Filter):
+    """Filter route-table which is attached to a subnet that is not in the same availability zone (AZ) of the
+    NAT Gateway subnet AZ. This filter is applicable to those route-tables which have next hop as NatGateways for
+    any route. If a route-table has NAT gateway from us-west-2a and it is associated to subnet from us-west-2b then it
+    will flagged, and NatGatewayInCrossAvailabilityZone key would be set a True.
+
+    :Example:
+    .. code-block:: yaml
+            policies:
+              - name: cross-az-nat-gateway-traffic
+                resource: aws.route-table
+                filters:
+                    - type: cross-az-nat-gateway-route
+                actions:
+                  - notify
+    """
+    schema = type_schema('cross-az-nat-gateway-route')
+
+    def process(self, resources, event=None):
+        # dump of all subnets and nat-gateways to avoid multiple API calls
+        all_subnets = self.manager.get_resource_manager('aws.subnet').resources()
+        all_nat_gws = self.manager.get_resource_manager('nat-gateway').resources()
+        # Create subnet_id AZ mapping
+        subnets_az_map = {subnet["SubnetId"]: subnet["AvailabilityZone"] for subnet in all_subnets}
+        # Create nat_gateway subnet_id AZ mapping
+        nat_gws_subnet_map = {nat_gateway['NatGatewayId']: nat_gateway["SubnetId"] for nat_gateway in
+                              all_nat_gws}
+        # List of AZ where NAT gateways are created. To make sure NAT Gateway is available in a given AZ
+        all_nat_gw_az = [subnets_az_map[nat_gateway["SubnetId"]] for nat_gateway in
+                         all_nat_gws]
+        results = []  # To return filtered resources
+        for res in resources:
+            res['NatGatewayAvailabilityZone'] = {}
+            for route in res["Routes"]:
+                if route.get("NatGatewayId") and route.get("State") == "active":
+                    nat_gw_az = subnets_az_map[nat_gws_subnet_map[route.get("NatGatewayId")]]
+                    res['NatGatewayAvailabilityZone'][route.get("NatGatewayId")] = nat_gw_az
+                    cross_nat_az = False
+                    for association in res["Associations"]:
+                        if association.get("SubnetId"):
+                            association['SubnetAvailabilityZone'] = subnets_az_map[association["SubnetId"]]
+                            if subnets_az_map[association["SubnetId"]] in all_nat_gw_az:
+                                association['NatGatewayAvailableInSubnetAvailabilityZone'] = True
+                            else:
+                                association['NatGatewayAvailableInSubnetAvailabilityZone'] = False
+                            # check if Associated Subnet AZ is same as NAT GW AZ
+                            if subnets_az_map[association["SubnetId"]] != nat_gw_az:
+                                cross_nat_az = True
+                    if cross_nat_az:
+                        res['NatGatewayInCrossAvailabilityZone'] = True
+                        results.append(res)
+        return results
