@@ -2716,6 +2716,8 @@ class CrossAZRouteTable(Filter):
     NAT Gateway subnet AZ. This filter is applicable to those route-tables which have next hop as NatGateways for
     any route. If a route-table has NAT gateway from us-west-2a and it is associated to subnet from us-west-2b then it
     will flagged, and NatGatewayInCrossAvailabilityZone key would be set a True.
+    This filter is useful for cost optimization and performance use-cases, where we don't want network traffic to cross
+    from one availability zone (AZ) to another AZ.
 
     :Example:
     .. code-block:: yaml
@@ -2728,6 +2730,7 @@ class CrossAZRouteTable(Filter):
                   - notify
     """
     schema = type_schema('cross-az-nat-gateway-route')
+    permissions = ("ec2:DescribeRouteTables", "ec2:DescribeNatGateways", "ec2:DescribeSubnets")
 
     def process(self, resources, event=None):
         # dump of all subnets and nat-gateways to avoid multiple API calls
@@ -2745,21 +2748,18 @@ class CrossAZRouteTable(Filter):
         for res in resources:
             res['NatGatewayAvailabilityZone'] = {}
             for route in res["Routes"]:
-                if route.get("NatGatewayId") and route.get("State") == "active":
-                    nat_gw_az = subnets_az_map[nat_gws_subnet_map[route.get("NatGatewayId")]]
-                    res['NatGatewayAvailabilityZone'][route.get("NatGatewayId")] = nat_gw_az
-                    cross_nat_az = False
-                    for association in res["Associations"]:
-                        if association.get("SubnetId"):
-                            association['SubnetAvailabilityZone'] = subnets_az_map[association["SubnetId"]]
-                            if subnets_az_map[association["SubnetId"]] in all_nat_gw_az:
-                                association['NatGatewayAvailableInSubnetAvailabilityZone'] = True
-                            else:
-                                association['NatGatewayAvailableInSubnetAvailabilityZone'] = False
-                            # check if Associated Subnet AZ is same as NAT GW AZ
-                            if subnets_az_map[association["SubnetId"]] != nat_gw_az:
-                                cross_nat_az = True
-                    if cross_nat_az:
-                        res['NatGatewayInCrossAvailabilityZone'] = True
+                if not route.get("NatGatewayId") or route.get("State") != "active":
+                    continue
+                nat_gw_az = subnets_az_map[nat_gws_subnet_map[route.get("NatGatewayId")]]
+                res['NatGatewayAvailabilityZone'][route.get("NatGatewayId")] = nat_gw_az
+                for association in res["Associations"]:
+                    subnet_id = association.get("SubnetId")
+                    if not subnet_id:
+                        continue
+                    association['SubnetAvailabilityZone'] = subnets_az_map[association["SubnetId"]]
+                    association['NatGatewayAvailableInSubnetAvailabilityZone'] = subnets_az_map[association["SubnetId"]] in all_nat_gw_az
+                    # check if Associated Subnet AZ is same as NAT GW AZ
+                    if subnets_az_map[subnet_id] != nat_gw_az:
                         results.append(res)
+                        break
         return results

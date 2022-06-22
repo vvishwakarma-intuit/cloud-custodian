@@ -1084,40 +1084,14 @@ class RouteTableTest(BaseTest):
                 "filters": [
                     {
                         "type": "cross-az-nat-gateway-route"
-                    },
-                    {
-                        "type": "value",
-                        "key": "Routes[].NatGatewayId",
-                        "op": "eq",
-                        "value": "not-null"
-                    },
-                    {
-                        "type": "value",
-                        "key": "Associations[].NatGatewayAvailableInSubnetAvailabilityZone",
-                        "op": "ni",
-                        "value": False,
-                        "value_type": "swap"
-                    },
-                    {
-                        "type": "value",
-                        "key": "Associations[].SubnetAvailabilityZone",
-                        "op": "eq",
-                        "value": "not-null"
-                    },
-                    {
-                        "type": "value",
-                        "key": "NatGatewayInCrossAvailabilityZone",
-                        "op": "eq",
-                        "value": True
                     }
-
                 ],
             },
             config={'region': 'us-west-2'},
             session_factory=factory,
         )
         resources = p.run()
-        self.assertEqual(len(resources), 1)
+        self.assertEqual(len(resources), 2)
         self.assertDictEqual(resources[0]["NatGatewayAvailabilityZone"], {"nat-06e9acaa9c0ab8799": "us-west-2a"})
 
 class PeeringConnectionTest(BaseTest):
