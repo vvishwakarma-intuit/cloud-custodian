@@ -2756,8 +2756,8 @@ class CrossAZRouteTable(Filter):
                     subnet_id = association.get("SubnetId")
                     if not subnet_id:
                         continue
-                    association['SubnetAvailabilityZone'] = subnets_az_map[association["SubnetId"]]
-                    association['NatGatewayAvailableInSubnetAvailabilityZone'] = subnets_az_map[association["SubnetId"]] in all_nat_gw_az
+                    association['SubnetAvailabilityZone'] = subnets_az_map[subnet_id]
+                    association['NatGatewayAvailableInSubnetAvailabilityZone'] = subnets_az_map[subnet_id] in all_nat_gw_az
                     # check if Associated Subnet AZ is same as NAT GW AZ
                     if subnets_az_map[subnet_id] != nat_gw_az:
                         results.append(res)
