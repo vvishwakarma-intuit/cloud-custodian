@@ -2715,7 +2715,7 @@ class CrossAZRouteTable(Filter):
     """Filter route-table which is attached to a subnet that is not in the same availability zone (AZ) of the
     NAT Gateway subnet AZ. This filter is applicable to those route-tables which have next hop as NatGateways for
     any route. If a route-table has NAT gateway from us-west-2a and it is associated to subnet from us-west-2b then it
-    will flagged, and NatGatewayInCrossAvailabilityZone key would be set a True.
+    will flagged.
     This filter is useful for cost optimization and performance use-cases, where we don't want network traffic to cross
     from one availability zone (AZ) to another AZ.
 
