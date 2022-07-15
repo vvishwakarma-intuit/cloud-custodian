@@ -2738,14 +2738,21 @@ class CrossAZRouteTable(Filter):
         all_nat_gws = self.manager.get_resource_manager('nat-gateway').resources()
         # Create subnet_id AZ mapping
         subnets_az_map = {subnet["SubnetId"]: subnet["AvailabilityZone"] for subnet in all_subnets}
-        # Create nat_gateway subnet_id AZ mapping
-        nat_gws_subnet_map = {nat_gateway['NatGatewayId']: nat_gateway["SubnetId"] for nat_gateway in
-                              all_nat_gws}
-        # List of AZ where NAT gateways are created. To make sure NAT Gateway is available in a given AZ
-        all_nat_gw_az = [subnets_az_map[nat_gateway["SubnetId"]] for nat_gateway in
-                         all_nat_gws]
+        # Create nat_gateway subnet_id AZ mapping vpc wise
+        nat_gws_subnet_map = {nat_gateway['NatGatewayId']: nat_gateway["SubnetId"]
+                              for nat_gateway in all_nat_gws}
+        # List of AZ where NAT gateways are created vpc wise. To make sure NAT Gateway is available in a given AZ for a vpc
+        all_nat_gw_az = {}  # To store NAT Gateway subnet AZ per VPC ID
+        for nat_gateway in all_nat_gws:
+            vpc_id = nat_gateway["VpcId"]
+            subnet_az = subnets_az_map[nat_gateway["SubnetId"]]
+            if vpc_id in all_nat_gw_az:
+                all_nat_gw_az[vpc_id].append(subnet_az)
+            else:
+                all_nat_gw_az[vpc_id] = [subnet_az]
         results = []  # To return filtered resources
         for res in resources:
+            vpc_id = res["VpcId"]
             res['NatGatewayAvailabilityZone'] = {}
             for route in res["Routes"]:
                 if not route.get("NatGatewayId") or route.get("State") != "active":
@@ -2757,7 +2764,7 @@ class CrossAZRouteTable(Filter):
                     if not subnet_id:
                         continue
                     association['SubnetAvailabilityZone'] = subnets_az_map[subnet_id]
-                    association['NatGatewayAvailableInSubnetAvailabilityZone'] = subnets_az_map[subnet_id] in all_nat_gw_az
+                    association['NatGatewayAvailableInSubnetAvailabilityZone'] = all_nat_gw_az.get(vpc_id) is not None and subnets_az_map[subnet_id] in all_nat_gw_az.get(vpc_id)
                     # check if Associated Subnet AZ is same as NAT GW AZ
                     if subnets_az_map[subnet_id] != nat_gw_az:
                         results.append(res)
