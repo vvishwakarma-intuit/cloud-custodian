@@ -1092,7 +1092,19 @@ class RouteTableTest(BaseTest):
         )
         resources = p.run()
         self.assertEqual(len(resources), 2)
-        self.assertDictEqual(resources[0]["NatGatewayAvailabilityZone"], {"nat-06e9acaa9c0ab8799": "us-west-2a"})
+        assert resources[0]["c7n:nat-az-mismatch"] == {
+            'nat-06e9acaa9c0ab8799': {
+                'NatGatewayAz': 'us-west-2a',
+                'Subnets': {'subnet-01989283067fcc12f': 'us-west-2c'}
+            }
+        }
+        assert resources[1]['c7n:nat-az-mismatch'] == {
+            'nat-06e9acaa9c0ab8799': {
+                'NatGatewayAz': 'us-west-2a',
+                'Subnets': {'subnet-06b85e2b5aac87c58': 'us-west-2b'}
+            }
+        }
+
 
 class PeeringConnectionTest(BaseTest):
 

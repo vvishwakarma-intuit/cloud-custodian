@@ -2712,12 +2712,12 @@ class TrafficMirrorTarget(query.QueryResourceManager):
 
 @RouteTable.filter_registry.register('cross-az-nat-gateway-route')
 class CrossAZRouteTable(Filter):
-    """Filter route-table which is attached to a subnet that is not in the same availability zone (AZ) of the
-    NAT Gateway subnet AZ. This filter is applicable to those route-tables which have next hop as NatGateways for
-    any route. If a route-table has NAT gateway from us-west-2a and it is associated to subnet from us-west-2b then it
-    will flagged.
-    This filter is useful for cost optimization and performance use-cases, where we don't want network traffic to cross
-    from one availability zone (AZ) to another AZ.
+    """Filter route-tables to find those with routes which send traffic
+    from a subnet in an az to a nat gateway in a different az.
+
+    This filter is useful for cost optimization, resiliency, and
+    performance use-cases, where we don't want network traffic to
+    cross from one availability zone (AZ) to another AZ.
 
     :Example:
     .. code-block:: yaml
@@ -2728,45 +2728,53 @@ class CrossAZRouteTable(Filter):
                     - type: cross-az-nat-gateway-route
                 actions:
                   - notify
+
     """
     schema = type_schema('cross-az-nat-gateway-route')
     permissions = ("ec2:DescribeRouteTables", "ec2:DescribeNatGateways", "ec2:DescribeSubnets")
 
+    def resolve_subnets(self, resource, subnets):
+        subnet_ids = set()
+        for association in resource['Associations']:
+            if association.get('Main'):
+                subnet_ids.update({
+                    s['SubnetId'] for s in subnets if s['VpcId'] == resource['VpcId']})
+            if association.get('SubnetId'):
+                subnet_ids.add(association['SubnetId'])
+        return subnet_ids
+
+    def process_route_table(self, subnets, nat_subnets, resource):
+        matched = {}
+        found = False
+        associated_subnets = self.resolve_subnets(resource, subnets.values())
+        for route in resource['Routes']:
+            if not route.get("NatGatewayId") or route.get("State") != "active":
+                continue
+            nat_az = subnets[nat_subnets[route['NatGatewayId']]]['AvailabilityZone']
+            mismatch_subnets = {
+                s: subnets[s]['AvailabilityZone'] for s in associated_subnets
+                if subnets[s]['AvailabilityZone'] != nat_az}
+            if not mismatch_subnets:
+                continue
+            found = True
+            matched.setdefault(route['NatGatewayId'], {})['NatGatewayAz'] = nat_az
+            matched[route['NatGatewayId']].setdefault('Subnets', {}).update(mismatch_subnets)
+        if not found:
+            return
+        resource['c7n:nat-az-mismatch'] = matched
+        return resource
+
     def process(self, resources, event=None):
-        # dump of all subnets and nat-gateways to avoid multiple API calls
-        all_subnets = self.manager.get_resource_manager('aws.subnet').resources()
-        all_nat_gws = self.manager.get_resource_manager('nat-gateway').resources()
-        # Create subnet_id AZ mapping
-        subnets_az_map = {subnet["SubnetId"]: subnet["AvailabilityZone"] for subnet in all_subnets}
-        # Create nat_gateway subnet_id AZ mapping vpc wise
-        nat_gws_subnet_map = {nat_gateway['NatGatewayId']: nat_gateway["SubnetId"]
-                              for nat_gateway in all_nat_gws}
-        # List of AZ where NAT gateways are created vpc wise. To make sure NAT Gateway is available in a given AZ for a vpc
-        all_nat_gw_az = {}  # To store NAT Gateway subnet AZ per VPC ID
-        for nat_gateway in all_nat_gws:
-            vpc_id = nat_gateway["VpcId"]
-            subnet_az = subnets_az_map[nat_gateway["SubnetId"]]
-            if vpc_id in all_nat_gw_az:
-                all_nat_gw_az[vpc_id].append(subnet_az)
-            else:
-                all_nat_gw_az[vpc_id] = [subnet_az]
-        results = []  # To return filtered resources
-        for res in resources:
-            vpc_id = res["VpcId"]
-            res['NatGatewayAvailabilityZone'] = {}
-            for route in res["Routes"]:
-                if not route.get("NatGatewayId") or route.get("State") != "active":
-                    continue
-                nat_gw_az = subnets_az_map[nat_gws_subnet_map[route.get("NatGatewayId")]]
-                res['NatGatewayAvailabilityZone'][route.get("NatGatewayId")] = nat_gw_az
-                for association in res["Associations"]:
-                    subnet_id = association.get("SubnetId")
-                    if not subnet_id:
-                        continue
-                    association['SubnetAvailabilityZone'] = subnets_az_map[subnet_id]
-                    association['NatGatewayAvailableInSubnetAvailabilityZone'] = all_nat_gw_az.get(vpc_id) is not None and subnets_az_map[subnet_id] in all_nat_gw_az.get(vpc_id)
-                    # check if Associated Subnet AZ is same as NAT GW AZ
-                    if subnets_az_map[subnet_id] != nat_gw_az:
-                        results.append(res)
-                        break
+        subnets = {
+            s['SubnetId']: s for s in
+            self.manager.get_resource_manager('aws.subnet').resources()
+        }
+        nat_subnets = {
+            nat_gateway['NatGatewayId']: nat_gateway["SubnetId"]
+            for nat_gateway in self.manager.get_resource_manager('nat-gateway').resources()}
+
+        results = []
+        for resource in resources:
+            if self.process_route_table(subnets, nat_subnets, resource):
+                results.append(resource)
         return results
