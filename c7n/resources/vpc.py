@@ -2733,7 +2733,8 @@ class CrossAZRouteTable(Filter):
     """
     schema = type_schema('cross-az-nat-gateway-route')
     permissions = ("ec2:DescribeRouteTables", "ec2:DescribeNatGateways", "ec2:DescribeSubnets")
-
+    annotation_key = 'c7n:NatGatewayAvailabilityZone'
+    
     def process(self, resources, event=None):
         # dump of all subnets and nat-gateways to avoid multiple API calls
         all_subnets = self.manager.get_resource_manager('aws.subnet').resources()
@@ -2755,12 +2756,12 @@ class CrossAZRouteTable(Filter):
         results = []  # To return filtered resources
         for res in resources:
             vpc_id = res["VpcId"]
-            res['NatGatewayAvailabilityZone'] = {}
+            res[self.annotation_key] = {}
             for route in res["Routes"]:
                 if not route.get("NatGatewayId") or route.get("State") != "active":
                     continue
                 nat_gw_az = subnets_az_map[nat_gws_subnet_map[route.get("NatGatewayId")]]
-                res['NatGatewayAvailabilityZone'][route.get("NatGatewayId")] = nat_gw_az
+                res[self.annotation_key][route.get("NatGatewayId")] = nat_gw_az
                 for association in res["Associations"]:
                     subnet_id = association.get("SubnetId")
                     if not subnet_id:
