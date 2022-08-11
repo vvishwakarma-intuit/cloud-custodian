@@ -134,6 +134,8 @@ class FlowLogFilter(Filter):
                 for fl in flogs:
                     dest_type_match = (destination_type is None) or op(
                         fl['LogDestinationType'], destination_type)
+                    if 'LogDestination' not in fl:
+                        fl['LogDestination'] = ''
                     dest_match = (destination is None) or op(
                         fl['LogDestination'], destination)
                     status_match = (status is None) or op(fl['FlowLogStatus'], status.upper())
@@ -2076,7 +2078,7 @@ class AddressRelease(BaseAction):
                 client.disassociate_address(AssociationId=aa['AssociationId'])
             except ClientError as e:
                 # If its already been diassociated ignore, else raise.
-                if not(e.response['Error']['Code'] == 'InvalidAssocationID.NotFound' and
+                if not (e.response['Error']['Code'] == 'InvalidAssocationID.NotFound' and
                        aa['AssocationId'] in e.response['Error']['Message']):
                     raise e
                 associated_addrs.remove(aa)
@@ -2733,6 +2735,7 @@ class CrossAZRouteTable(Filter):
     schema = type_schema('cross-az-nat-gateway-route')
     permissions = ("ec2:DescribeRouteTables", "ec2:DescribeNatGateways", "ec2:DescribeSubnets")
 
+
     def resolve_subnets(self, resource, subnets):
         subnet_ids = set()
         for association in resource['Associations']:
@@ -2777,4 +2780,5 @@ class CrossAZRouteTable(Filter):
         for resource in resources:
             if self.process_route_table(subnets, nat_subnets, resource):
                 results.append(resource)
+
         return results
