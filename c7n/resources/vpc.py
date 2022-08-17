@@ -2739,23 +2739,27 @@ class CrossAZRouteTable(Filter):
     mismatch_annotation = "c7n:nat-az-mismatch"
 
     def resolve_subnets(self, resource, subnets):
-        # for a given route table return all associated subnets
-        subnet_ids = set()
-        for association in resource['Associations']:
-            if association.get('Main'):
-                subnet_ids.update({
-                    s['SubnetId'] for s in subnets if s['VpcId'] == resource['VpcId']
-                    and self.table_annotation not in s})
-            if association.get('SubnetId'):
-                subnet_ids.add(association['SubnetId'])
-        return subnet_ids
+        return {s['SubnetId'] for s in subnets
+                if s[self.table_annotation] == resource['RouteTableId']}
 
-    def annotate_tables(self, resource, subnets):
-        # annotate explicit route table associations onto their respective subnets
-        for association in resource['Associations']:
-            if association.get('SubnetId'):
-                subnets[association['SubnetId']][
-                    self.table_annotation] = resource[self.manager.resource_type.id]
+    def annotate_subnets_table(self, tables: list, subnets: dict):
+        # annotate route table associations onto their respective subnets
+        main_tables = []
+        # annotate explicit associations
+        for t in tables:
+            for association in t['Associations']:
+                if association.get('SubnetId'):
+                    subnets[association['SubnetId']][
+                        self.table_annotation] = t['RouteTableId']
+                if association.get('Main'):
+                    main_tables.append(t)
+        # annotate main tables
+        for s in subnets.values():
+            if self.table_annotation in s:
+                continue
+            for t in main_tables:
+                if t['VpcId'] == s['VpcId']:
+                    s[self.table_annotation] = t['RouteTableId']
 
     def process_route_table(self, subnets, nat_subnets, resource):
         matched = {}
@@ -2788,9 +2792,7 @@ class CrossAZRouteTable(Filter):
             for nat_gateway in self.manager.get_resource_manager('nat-gateway').resources()}
 
         results = []
-        # we need a separate pass to be able to disambiguate main table associations.
-        for resource in resources:
-            self.annotate_tables(resource, subnets)
+        self.annotate_subnets_table(resources, subnets)
         for resource in resources:
             if self.process_route_table(subnets, nat_subnets, resource):
                 results.append(resource)

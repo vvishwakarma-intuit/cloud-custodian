@@ -1120,11 +1120,9 @@ def test_cross_az_nat_gateway_subnet_resolve(test):
         s['SubnetId']: s for s in
         p.resource_manager.get_resource_manager('aws.subnet').resources()}
 
-    for t in tables:
-        cross_nat.annotate_tables(t, subnets)
+    cross_nat.annotate_subnets_table(tables, subnets)
 
     table_subnets = {}
-
     for t in tables:
         table_subnets[t['RouteTableId']] = list(
             cross_nat.resolve_subnets(t, subnets.values()))
