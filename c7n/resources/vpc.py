@@ -2735,16 +2735,27 @@ class CrossAZRouteTable(Filter):
     schema = type_schema('cross-az-nat-gateway-route')
     permissions = ("ec2:DescribeRouteTables", "ec2:DescribeNatGateways", "ec2:DescribeSubnets")
 
+    table_annotation = "c7n:route-table"
+    mismatch_annotation = "c7n:nat-az-mismatch"
 
     def resolve_subnets(self, resource, subnets):
+        # for a given route table return all associated subnets
         subnet_ids = set()
         for association in resource['Associations']:
             if association.get('Main'):
                 subnet_ids.update({
-                    s['SubnetId'] for s in subnets if s['VpcId'] == resource['VpcId']})
+                    s['SubnetId'] for s in subnets if s['VpcId'] == resource['VpcId']
+                    and self.table_annotation not in s})
             if association.get('SubnetId'):
                 subnet_ids.add(association['SubnetId'])
         return subnet_ids
+
+    def annotate_tables(self, resource, subnets):
+        # annotate explicit route table associations onto their respective subnets
+        for association in resource['Associations']:
+            if association.get('SubnetId'):
+                subnets[association['SubnetId']][
+                    self.table_annotation] = resource[self.manager.resource_type.id]
 
     def process_route_table(self, subnets, nat_subnets, resource):
         matched = {}
@@ -2764,7 +2775,7 @@ class CrossAZRouteTable(Filter):
             matched[route['NatGatewayId']].setdefault('Subnets', {}).update(mismatch_subnets)
         if not found:
             return
-        resource['c7n:nat-az-mismatch'] = matched
+        resource[self.mismatch_annotation] = matched
         return resource
 
     def process(self, resources, event=None):
@@ -2777,6 +2788,9 @@ class CrossAZRouteTable(Filter):
             for nat_gateway in self.manager.get_resource_manager('nat-gateway').resources()}
 
         results = []
+        # we need a separate pass to be able to disambiguate main table associations.
+        for resource in resources:
+            self.annotate_tables(resource, subnets)
         for resource in resources:
             if self.process_route_table(subnets, nat_subnets, resource):
                 results.append(resource)
