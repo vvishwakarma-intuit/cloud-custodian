@@ -110,6 +110,23 @@
             "SubnetArn": "arn:aws:ec2:us-west-2:644160558196:subnet/subnet-03f2787d0dd5a9094"
         },
         {
+            "AvailabilityZone": "us-west-2c",
+            "AvailabilityZoneId": "usw2-az3",
+            "AvailableIpAddressCount": 27,
+            "CidrBlock": "10.0.1.192/30",
+            "DefaultForAz": false,
+            "MapPublicIpOnLaunch": false,
+            "MapCustomerOwnedIpOnLaunch": false,
+            "State": "available",
+            "SubnetId": "subnet-aabbccddee",
+            "VpcId": "vpc-012347c909f1f1896",
+            "OwnerId": "644160558196",
+            "AssignIpv6AddressOnCreation": false,
+            "Ipv6CidrBlockAssociationSet": [],
+            "Tags": [],
+            "SubnetArn": "arn:aws:ec2:us-west-2:644160558196:subnet/subnet-aabbccddee"
+        },
+        {
             "AvailabilityZone": "us-west-2b",
             "AvailabilityZoneId": "usw2-az1",
             "AvailableIpAddressCount": 251,

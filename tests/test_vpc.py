@@ -1137,7 +1137,7 @@ def test_cross_az_nat_gateway_subnet_resolve(test):
         'rtb-0564036d8c3e1e117': ['subnet-0a57b9d3da96e4364'],
         'rtb-0790946c364d31f08': ['subnet-01989283067fcc12f'],
         'rtb-0ba85f9bc06635600': ['subnet-09e7dd01ed236e50c'],
-        'rtb-0c26eee79085b11b4': [],
+        'rtb-0c26eee79085b11b4': ['subnet-aabbccddee'],
         'rtb-0da8d0fc8d7c46a45': ['subnet-06b85e2b5aac87c58'],
         'rtb-0e40b5294fd751b38': ['subnet-0845061a295aef2b6'],
         'rtb-0f13aebd1241f7141': ['subnet-0b8f90974afb1a016']
